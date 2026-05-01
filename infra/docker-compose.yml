@@ -1,0 +1,140 @@
+# SecureTrax-2 — base self-hosted on-prem stack.
+# Bring up with: docker compose -f infra/docker-compose.yml up -d
+#
+# Phase-0 services. Heavy add-ons (Traccar, SecureVu/Frigate, go2rtc,
+# Mosquitto archiver, LiveKit, OpenTelemetry, etc.) get added in their
+# own phase profiles so this file stays scannable.
+
+name: securetrax-2
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *restart
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_DB: securetrax
+      POSTGRES_USER: securetrax
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securetrax}
+    volumes:
+      - ./data/postgres:/home/postgres/pgdata/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securetrax -d securetrax"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+
+  mosquitto:
+    <<: *restart
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./data/mosquitto:/mosquitto/data
+      - ./data/mosquitto-log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+
+  minio:
+    <<: *restart
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-securetrax}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-securetrax-change-me}
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "9000:9000"
+      - "9011:9001"
+
+  vault:
+    <<: *restart
+    image: hashicorp/vault:1.17
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-securetrax-dev-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+
+  keycloak:
+    <<: *restart
+    image: quay.io/keycloak/keycloak:25.0
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-securetrax}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: securetrax
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-securetrax}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  tileserver:
+    <<: *restart
+    image: maptiler/tileserver-gl:latest
+    command: ["--public_url=http://localhost:8080/"]
+    volumes:
+      - ./tileserver:/data
+    ports:
+      - "8080:8080"
+
+  api:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LICENSE_DIR: /app/licenses
+      LICENSE_KEYS_DIR: /app/licenses/keys
+      DATABASE_URL: postgres://securetrax:${POSTGRES_PASSWORD:-securetrax}@postgres:5432/securetrax
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://mosquitto:1883
+      KEYCLOAK_URL: http://keycloak:8080
+    volumes:
+      - ../licenses:/app/licenses:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+  web:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    environment:
+      VITE_TILES_URL: http://localhost:8080/styles/basic-preview/style.json
+    depends_on:
+      - api
+    ports:
+      - "5173:80"

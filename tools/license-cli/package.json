@@ -1,0 +1,25 @@
+{
+  "name": "@securetrax/license-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "securetrax-license": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "sign": "tsx src/cli.ts sign",
+    "verify": "tsx src/cli.ts verify",
+    "keygen": "tsx src/cli.ts keygen",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@securetrax/core": "workspace:*",
+    "@securetrax/module-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}

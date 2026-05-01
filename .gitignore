@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.cache/
+coverage/
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vscode/
+.idea/
+*.tsbuildinfo
+
+# License + secrets (never commit)
+licenses/*.lic
+licenses/*.key
+keys/
+secrets/
+
+# Generated artifacts
+packages/sdk-securetrax-ts/src/generated/
+packages/sdk-securetrax-py/securetrax/generated/
+apps/api/openapi.json
+
+# Docker volumes
+infra/data/
