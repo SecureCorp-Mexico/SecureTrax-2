@@ -29,6 +29,10 @@ import {
   manifest as trackingManifest,
   TrackingTraccarModule,
 } from '@securetrax/module-tracking-traccar';
+import {
+  manifest as telemetryMqttManifest,
+  TelemetryMqttModule,
+} from '@securetrax/module-telemetry-mqtt';
 import type { ModuleManifest } from '@securetrax/module-contracts';
 
 interface RegisteredModule {
@@ -38,6 +42,7 @@ interface RegisteredModule {
 
 const ALL_MODULES: RegisteredModule[] = [
   { manifest: trackingManifest, nestModule: TrackingTraccarModule },
+  { manifest: telemetryMqttManifest, nestModule: TelemetryMqttModule },
 ];
 
 const license = loadLicenseSync();

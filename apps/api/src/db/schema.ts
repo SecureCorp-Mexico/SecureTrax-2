@@ -253,6 +253,39 @@ export const webhookSubscriptions = pgTable('webhook_subscriptions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ─── MQTT mapping engine ──────────────────────────────────────────────────
+
+export const mqttTopicMappings = pgTable(
+  'mqtt_topic_mappings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** MQTT-style pattern with `+`/`#` wildcards plus optional `{name}` captures. */
+    topicPattern: text('topic_pattern').notNull(),
+    payloadKind: text('payload_kind').notNull().default('json'), // json | text
+    eventType: text('event_type').notNull(), // position | telemetry | alert
+    /**
+     * Field-extraction rules. Keys are canonical event fields
+     * (assetId / lat / lon / ts / speed / heading / metric / value / ...);
+     * values are either:
+     *   - "$.foo.bar"   — JSONPath against the parsed payload
+     *   - "{capture}"   — captured topic segment (from {name} in topicPattern)
+     *   - any literal   — used verbatim
+     */
+    rules: jsonb('rules').$type<Record<string, string>>().notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    priority: integer('priority').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    tenantIdx: index('mqtt_topic_mappings_tenant_idx').on(t.tenantId, t.priority),
+  }),
+);
+
 export const webhookDeliveries = pgTable(
   'webhook_deliveries',
   {

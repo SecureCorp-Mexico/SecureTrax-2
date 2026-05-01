@@ -19,7 +19,8 @@ apps/api          NestJS backend (license-gated module registry + OpenAPI)
 apps/web          React + Vite + MapLibre GL JS full-screen shell
 packages/core     Ed25519 license verifier, shared types, video stream-provider
 packages/module-contracts   zod schemas for manifests + license files
-modules/tracking-traccar    first reference module
+modules/tracking-traccar    Traccar adapter + canonical position pipeline
+modules/telemetry-mqtt      MQTT archiver + per-tenant mapping engine
 tools/license-cli           keygen / sign / verify CLI
 tools/sim-positions         synthetic GPS publisher for the demo
 infra             docker-compose, nginx, mosquitto, dockerfiles
@@ -35,9 +36,10 @@ pnpm install
 pnpm --filter @securetrax/license-cli run keygen \
   -- --kid st2-dev --out ./licenses/keys
 
-# 3. Sign a license enabling the tracking-traccar reference module
+# 3. Sign a license enabling the v1 modules
 pnpm --filter @securetrax/license-cli run sign \
-  -- --kid st2-dev --tenant default --modules tracking-traccar --days 365
+  -- --kid st2-dev --tenant default \
+     --modules tracking-traccar,telemetry-mqtt --days 365
 
 # 4. Bring up the base stack (Postgres+Timescale, Redis, Mosquitto, Keycloak,
 #    Vault, MinIO, TileServer GL, API, Web)
@@ -90,9 +92,46 @@ localStorage.setItem('securetrax.token', '<JWT>'); location.reload();
 Either path: clustered cyan markers walk around the map, updated in real time
 over `/ws`.
 
+### Demo: MQTT ingest + mapping engine
+
+With `telemetry-mqtt` licensed, the API subscribes to `securetrax/#` on the
+bundled Mosquitto broker, mirrors every message into the `mqtt_messages`
+Timescale hypertable (powers the AI assistant's `mqtt_search` tool later),
+and runs a per-tenant mapping engine that translates raw MQTT into canonical
+events. Position-typed mappings feed the same pipeline `tracking-traccar`
+uses, so a generic OpenWRT router publishing JSON can land on the map without
+any custom code.
+
+```bash
+# 1) Create a mapping that turns
+#      securetrax/default/<assetId>/position
+#      payload: {"lat":..., "lon":..., "ts":...}
+#    into canonical position events.
+curl -X PUT http://localhost:3000/api/v1/telemetry/mappings/router-position \
+  -H "authorization: Bearer $TOKEN" -H "content-type: application/json" -d '{
+    "name": "Router position",
+    "topicPattern": "securetrax/+/{assetId}/position",
+    "payloadKind": "json",
+    "eventType": "position",
+    "rules": {
+      "assetId": "{assetId}",
+      "lat": "$.lat",
+      "lon": "$.lon",
+      "ts":  "$.ts"
+    }
+  }'
+
+# 2) Publish a position over MQTT (with mosquitto-clients installed):
+mosquitto_pub -h localhost -t 'securetrax/default/ROUTER-7/position' \
+  -m "{\"lat\":19.43,\"lon\":-99.13,\"ts\":$(date +%s%3N)}"
+
+# 3) See it in the archive (and on the map within ~1s):
+curl -H "authorization: Bearer $TOKEN" \
+  'http://localhost:3000/api/v1/telemetry/archive?topicLike=securetrax/%25&limit=20'
+```
+
 The web app boots into a full-screen MapLibre canvas. The top-left panel calls
-`GET /api/v1/capabilities` and lists enabled modules. With no license file the
-list is empty; with the license signed in step 3, `tracking-traccar` appears.
+`GET /api/v1/capabilities` and lists enabled modules.
 
 ## Module system (license-gated)
 
