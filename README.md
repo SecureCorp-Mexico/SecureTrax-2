@@ -43,7 +43,11 @@ pnpm --filter @securetrax/license-cli run sign \
 cp .env.example .env
 docker compose -f infra/docker-compose.yml up -d
 
-# 5. Open
+# 5. Apply DB migrations + bootstrap a default tenant + admin user
+pnpm --filter @securetrax/api run db:migrate
+pnpm --filter @securetrax/api run db:bootstrap
+
+# 6. Open
 #    Web:        http://localhost:5173
 #    OpenAPI:    http://localhost:3000/api/docs
 #    Keycloak:   http://localhost:8081 (admin / securetrax)
@@ -73,7 +77,25 @@ list is empty; with the license signed in step 3, `tracking-traccar` appears.
 Phase 0 (foundations) — **in progress.** Monorepo, license verify + sign,
 NestJS skeleton with module registry + OpenAPI, web shell with MapLibre,
 docker-compose with the base services, reference `tracking-traccar` module
-stub. Auth, RBAC, audit log, three-layer authorization, and the rest of
-section 10 of the plan come next inside Phase 0.
+stub, plus the security/compliance + data-plane foundation:
 
-See the plan file for the full Phase 1–10 roadmap.
+- IAM with namespaced permissions, hierarchical scopes (tenant > site >
+  group > device), ISO-27001 role presets, separation-of-duties.
+- JWT bearer + Personal Access Tokens + Machine API keys → one
+  authorization layer; three guards (Permission / Scope / StepUp) wired
+  globally.
+- Hash-chained append-only audit log with tamper detection.
+- WebSocket gateway at `/ws` with MQTT-style topic patterns.
+- Postgres + TimescaleDB + PostGIS data plane via Drizzle ORM:
+  `tenants`, `sites`, `groups`, `assets`, `positions` (hypertable),
+  `telemetry` (hypertable), `audit_log` (hypertable), `mqtt_messages`
+  (hypertable), `iam_users`/`iam_roles`/`iam_user_roles`, `api_keys`,
+  `personal_access_tokens`, `module_installations`, `webhook_*`.
+- **Row-level security** as the layer-3 authorization backstop: every
+  tenant-scoped table FORCEs RLS; the API runs as a non-superuser role
+  and pushes `app.tenant_id` into a session-local var per request via
+  `DbService.withTenant` + the request-scoped `TenantContextService`.
+
+Vault-backed key rotation, mTLS device PKI, supply-chain CI gates, and
+the Compliance Console come next inside Phase 0; then Phase 1 wires the
+real Traccar adapter on top.

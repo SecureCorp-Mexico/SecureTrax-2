@@ -13,8 +13,8 @@ export class TrackingController {
 
   @Get('assets')
   @RequirePermissions('tracking.assets.read')
-  @ApiOperation({ summary: 'List tracked assets' })
-  listAssets() {
-    return { items: this.tracking.listAssets() };
+  @ApiOperation({ summary: 'List tracked assets (RLS-scoped to caller tenant).' })
+  async listAssets() {
+    return { items: await this.tracking.listAssets() };
   }
 }

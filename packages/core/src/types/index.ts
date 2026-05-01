@@ -15,6 +15,8 @@ export type AssetCategory = z.infer<typeof AssetCategory>;
 export const Asset = z.object({
   id: z.string(),
   tenantId: z.string(),
+  siteId: z.string().nullable().optional(),
+  groupId: z.string().nullable().optional(),
   name: z.string(),
   category: AssetCategory,
   tags: z.array(z.string()).default([]),

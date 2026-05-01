@@ -24,6 +24,7 @@ import { ScopeGuard } from './auth/guards/scope.guard.js';
 import { StepUpGuard } from './auth/guards/step-up.guard.js';
 import { AuditModule } from './audit/audit.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { DbModule } from './db/db.module.js';
 import {
   manifest as trackingManifest,
   TrackingTraccarModule,
@@ -56,6 +57,7 @@ const enabledModules = ALL_MODULES.filter((m) => {
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LicenseModule,
+    DbModule,
     IamModule,
     AuthModule,
     AuditModule,
