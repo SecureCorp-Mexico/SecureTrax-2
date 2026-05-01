@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { Map as MlMap, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { RealtimeClient } from '../realtime/RealtimeClient.js';
+import { MovingAssetsLayer } from './MovingAssetsLayer.js';
+import { fetchLatestPositions } from '../api/positions.js';
 
 const TILES_URL =
   import.meta.env.VITE_TILES_URL ?? 'http://localhost:8080/styles/basic-preview/style.json';
@@ -32,7 +35,6 @@ export function MapCanvas() {
       attributionControl: { compact: true },
     });
     map.on('error', (e) => {
-      // If self-hosted tiles aren't reachable yet (early dev), fall back to OSM raster.
       if (e?.error?.message?.includes('Failed to fetch')) {
         map.setStyle(FALLBACK_STYLE);
       }
@@ -40,7 +42,26 @@ export function MapCanvas() {
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
     mapRef.current = map;
+
+    const token = localStorage.getItem('securetrax.token') ?? undefined;
+    const rt = new RealtimeClient('/ws', token);
+    const layer = new MovingAssetsLayer(map, rt);
+
+    let detached = false;
+    map.on('load', async () => {
+      let initial = [] as Awaited<ReturnType<typeof fetchLatestPositions>>['items'];
+      try {
+        initial = (await fetchLatestPositions(token)).items;
+      } catch {
+        // unauth or no positions yet — start empty, WS frames will fill it
+      }
+      if (!detached) layer.attach(initial);
+    });
+
     return () => {
+      detached = true;
+      layer.detach();
+      rt.destroy();
       map.remove();
       mapRef.current = null;
     };

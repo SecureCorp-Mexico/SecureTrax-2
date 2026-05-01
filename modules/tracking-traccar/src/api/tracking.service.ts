@@ -1,16 +1,21 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   ASSETS_REPOSITORY,
+  BROADCASTER,
+  POSITIONS_REPOSITORY,
   type Asset,
   type IAssetsRepository,
+  type IBroadcaster,
+  type IPositionsRepository,
   type Position,
 } from '@securetrax/core';
 
 /**
- * Phase-0 wiring: list/upsert assets through the abstract repo (Drizzle-backed
- * in apps/api). Position ingest from Traccar's WS + REST + canonical pipeline
- * (Position → positions hypertable → Redis hot cache → WS broadcast on
- * `assets/<id>/position`) lands in Phase 1.
+ * Canonical position pipeline. ingestPosition is the single entry point —
+ * Traccar adapter, MQTT mapping engine, the simulator, and the test REST
+ * endpoint all funnel through it. It writes to the positions hypertable
+ * (RLS-scoped via the request's tenant context) and broadcasts on
+ * `assets/<id>/position` so live web/mobile subscribers see updates.
  */
 @Injectable()
 export class TrackingService {
@@ -18,6 +23,8 @@ export class TrackingService {
 
   constructor(
     @Inject(ASSETS_REPOSITORY) private readonly assets: IAssetsRepository,
+    @Inject(POSITIONS_REPOSITORY) private readonly positions: IPositionsRepository,
+    @Optional() @Inject(BROADCASTER) private readonly broadcaster?: IBroadcaster,
   ) {}
 
   async listAssets(): Promise<Asset[]> {
@@ -28,7 +35,22 @@ export class TrackingService {
     return this.assets.upsert(input);
   }
 
-  async ingestPosition(_p: Position): Promise<void> {
-    // wired up in Phase 1
+  async latestPositions(): Promise<Position[]> {
+    return this.positions.latestPerAsset();
+  }
+
+  async positionHistory(
+    assetId: string,
+    opts?: { limit?: number; sinceMs?: number },
+  ): Promise<Position[]> {
+    return this.positions.history(assetId, opts);
+  }
+
+  async ingestPosition(
+    p: Position & { tenantId: string },
+  ): Promise<Position> {
+    await this.positions.insert(p);
+    this.broadcaster?.broadcast(`assets/${p.assetId}/position`, p);
+    return p;
   }
 }

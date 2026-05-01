@@ -10,7 +10,8 @@
     "./license": "./src/license/index.ts",
     "./video": "./src/video/index.ts",
     "./types": "./src/types/index.ts",
-    "./repos": "./src/repos/index.ts"
+    "./repos": "./src/repos/index.ts",
+    "./realtime": "./src/realtime/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

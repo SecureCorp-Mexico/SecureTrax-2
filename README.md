@@ -21,6 +21,7 @@ packages/core     Ed25519 license verifier, shared types, video stream-provider
 packages/module-contracts   zod schemas for manifests + license files
 modules/tracking-traccar    first reference module
 tools/license-cli           keygen / sign / verify CLI
+tools/sim-positions         synthetic GPS publisher for the demo
 infra             docker-compose, nginx, mosquitto, dockerfiles
 ```
 
@@ -54,6 +55,31 @@ pnpm --filter @securetrax/api run db:bootstrap
 #    MinIO:      http://localhost:9011
 #    TileServer: http://localhost:8080
 ```
+
+### Demo: live moving markers on the map
+
+The Phase-1 position pipeline (`tracking-traccar`) is wired end-to-end:
+REST ingest → Postgres `positions` hypertable (RLS-scoped) → WS broadcast on
+`assets/<id>/position` → MapLibre clustered marker layer.
+
+The simulator drives N virtual vehicles around Mexico City so you can see it
+without a real Traccar phone:
+
+```bash
+# In one terminal, with a JWT for an Operator-or-better in tenant `default`:
+TOKEN=...   # paste a Keycloak-issued JWT, or any test JWT during dev
+API_URL=http://localhost:3000/api COUNT=8 \
+  pnpm --filter @securetrax/sim-positions run start
+```
+
+Drop the same token into the browser via the JS console:
+
+```js
+localStorage.setItem('securetrax.token', '<JWT>'); location.reload();
+```
+
+You should now see clustered cyan markers walking around the map, updated in
+real time over `/ws`.
 
 The web app boots into a full-screen MapLibre canvas. The top-left panel calls
 `GET /api/v1/capabilities` and lists enabled modules. With no license file the

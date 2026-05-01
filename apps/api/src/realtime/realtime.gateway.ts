@@ -52,7 +52,23 @@ export class RealtimeGateway
   }
 
   async handleConnection(client: WebSocket, req: IncomingMessage): Promise<void> {
-    const principal = await this.auth.authenticate({ headers: req.headers as Record<string, string | string[] | undefined> });
+    // Browsers can't set Authorization on a WebSocket. Accept the same
+    // credentials via `?access_token=...`/`?token=...`/`?api_key=...` query
+    // params, normalized into header-shaped values for the strategies.
+    const headers = { ...req.headers } as Record<string, string | string[] | undefined>;
+    try {
+      const url = new URL(req.url ?? '/', 'http://x');
+      const bearer = url.searchParams.get('access_token') ?? url.searchParams.get('token');
+      if (bearer && !headers['authorization']) {
+        headers['authorization'] = `Bearer ${bearer}`;
+      }
+      const apiKey = url.searchParams.get('api_key');
+      if (apiKey && !headers['x-api-key']) headers['x-api-key'] = apiKey;
+    } catch {
+      // ignore — fall back to header-only auth
+    }
+
+    const principal = await this.auth.authenticate({ headers });
     this.clients.set(client, { principal, subscriptions: new Set() });
     this.audit.append({
       tenantId: principal?.tenantId ?? '<anonymous>',
