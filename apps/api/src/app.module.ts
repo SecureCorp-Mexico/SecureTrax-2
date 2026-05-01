@@ -26,6 +26,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { DbModule } from './db/db.module.js';
 import { MqttModule } from './mqtt/mqtt.module.js';
+import { ComplianceModule } from './compliance/compliance.module.js';
 import {
   manifest as trackingManifest,
   TrackingTraccarModule,
@@ -94,6 +95,7 @@ const enabledModules = ALL_MODULES.filter((m) => {
     AuthModule,
     AuditModule,
     RealtimeModule,
+    ComplianceModule,
     ModuleRegistryModule,
     ...enabledModules.map((m) => m.nestModule),
   ],

@@ -22,6 +22,9 @@ packages/module-contracts   zod schemas for manifests + license files
 modules/tracking-traccar    Traccar adapter + canonical position pipeline
 modules/telemetry-mqtt      MQTT archiver + per-tenant mapping engine
 modules/video-securevu      SecureVu/Frigate cameras + go2rtc WebRTC popup
+modules/videowall           Multi-stream grid layouts + multi-monitor sync
+modules/aircraft-qgc        MAVLink ingest + Ed25519 flight-plan approvals
+modules/reports-fleet       Trips/distance/idle reports (CSV+JSON)
 modules/ai-assistant        Claude / Ollama assistant w/ tool-use over the data plane
 tools/license-cli           keygen / sign / verify CLI
 tools/sim-positions         synthetic GPS publisher for the demo
@@ -38,10 +41,10 @@ pnpm install
 pnpm --filter @securetrax/license-cli run keygen \
   -- --kid st2-dev --out ./licenses/keys
 
-# 3. Sign a license enabling the v1 modules
+# 3. Sign a license enabling the full v1 module set
 pnpm --filter @securetrax/license-cli run sign \
   -- --kid st2-dev --tenant default \
-     --modules tracking-traccar,telemetry-mqtt,video-securevu,ai-assistant \
+     --modules tracking-traccar,telemetry-mqtt,video-securevu,videowall,aircraft-qgc,reports-fleet,ai-assistant \
      --days 365
 
 # 4. Bring up the base stack (Postgres+Timescale, Redis, Mosquitto, Keycloak,

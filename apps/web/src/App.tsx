@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapCanvas } from './map/MapCanvas.js';
 import { CapabilitiesPanel } from './ui/CapabilitiesPanel.js';
 import { ChatPanel } from './chat/ChatPanel.js';
+import { CompliancePanel } from './compliance/CompliancePanel.js';
 import { Videowall } from './videowall/Videowall.js';
 import { fetchCapabilities, type Capabilities } from './api/capabilities.js';
 
@@ -29,6 +30,7 @@ export function App() {
       <MapCanvas />
       <CapabilitiesPanel caps={caps} error={error} />
       {aiEnabled && <ChatPanel />}
+      <CompliancePanel />
     </div>
   );
 }
