@@ -50,6 +50,10 @@ import {
   manifest as aircraftQgcManifest,
   AircraftQgcModule,
 } from '@securetrax/module-aircraft-qgc';
+import {
+  manifest as videowallManifest,
+  VideowallModule,
+} from '@securetrax/module-videowall';
 import type { ModuleManifest } from '@securetrax/module-contracts';
 
 interface RegisteredModule {
@@ -64,6 +68,7 @@ const ALL_MODULES: RegisteredModule[] = [
   { manifest: aiAssistantManifest, nestModule: AiAssistantModule },
   { manifest: reportsFleetManifest, nestModule: ReportsFleetModule },
   { manifest: aircraftQgcManifest, nestModule: AircraftQgcModule },
+  { manifest: videowallManifest, nestModule: VideowallModule },
 ];
 
 const license = loadLicenseSync();
