@@ -1,4 +1,12 @@
-import { Logger, Module, type Type, type DynamicModule } from '@nestjs/common';
+import {
+  Logger,
+  MiddlewareConsumer,
+  Module,
+  type DynamicModule,
+  type NestModule,
+  type Type,
+} from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { LicenseModule } from './license/license.module.js';
 import { LicenseService } from './license/license.service.js';
@@ -7,6 +15,15 @@ import { ModuleRegistryModule } from './modules/module-registry.module.js';
 import { ModuleRegistry } from './modules/module-registry.service.js';
 import { CapabilitiesController } from './api/capabilities.controller.js';
 import { HealthController } from './api/health.controller.js';
+import { IamModule } from './iam/iam.module.js';
+import { IamService } from './iam/iam.service.js';
+import { AuthModule } from './auth/auth.module.js';
+import { AuthMiddleware } from './auth/auth.middleware.js';
+import { PermissionGuard } from './auth/guards/permission.guard.js';
+import { ScopeGuard } from './auth/guards/scope.guard.js';
+import { StepUpGuard } from './auth/guards/step-up.guard.js';
+import { AuditModule } from './audit/audit.module.js';
+import { RealtimeModule } from './realtime/realtime.module.js';
 import {
   manifest as trackingManifest,
   TrackingTraccarModule,
@@ -39,13 +56,29 @@ const enabledModules = ALL_MODULES.filter((m) => {
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LicenseModule,
+    IamModule,
+    AuthModule,
+    AuditModule,
+    RealtimeModule,
     ModuleRegistryModule,
     ...enabledModules.map((m) => m.nestModule),
   ],
   controllers: [HealthController, CapabilitiesController],
+  providers: [
+    { provide: APP_GUARD, useClass: PermissionGuard },
+    { provide: APP_GUARD, useClass: ScopeGuard },
+    { provide: APP_GUARD, useClass: StepUpGuard },
+  ],
 })
-export class AppModule {
-  constructor(registry: ModuleRegistry) {
-    for (const m of enabledModules) registry.register(m.manifest);
+export class AppModule implements NestModule {
+  constructor(registry: ModuleRegistry, iam: IamService) {
+    for (const m of enabledModules) {
+      registry.register(m.manifest);
+      iam.registerPermissions(m.manifest.api.permissions);
+    }
+  }
+
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(AuthMiddleware).forRoutes('*');
   }
 }
