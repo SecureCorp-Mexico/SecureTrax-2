@@ -58,12 +58,21 @@ pnpm --filter @securetrax/api run db:bootstrap
 
 ### Demo: live moving markers on the map
 
-The Phase-1 position pipeline (`tracking-traccar`) is wired end-to-end:
-REST ingest → Postgres `positions` hypertable (RLS-scoped) → WS broadcast on
-`assets/<id>/position` → MapLibre clustered marker layer.
+The Phase-1 position pipeline (`tracking-traccar`) feeds two ingest paths
+into the same canonical pipeline (Postgres `positions` hypertable [RLS-scoped]
+→ WS broadcast on `assets/<id>/position` → MapLibre clustered marker layer):
 
-The simulator drives N virtual vehicles around Mexico City so you can see it
-without a real Traccar phone:
+**A. Real Traccar.** With `TRACCAR_URL` set (the bundled Traccar service in
+`docker-compose` is reachable at `http://traccar:8082`, default `admin/admin`
+— change it before exposing externally), the API's `TraccarAdapter` logs in
+once, syncs devices into our `assets` table, opens `/api/socket`, and feeds
+every incoming position through. Point a Traccar Client phone or any GPS
+hardware at the protocol ports exposed by the Traccar container (e.g.
+`5055/tcp` for OsmAnd / Traccar Client) and the marker appears on the
+SecureTrax-2 map within seconds.
+
+**B. Simulator.** When you don't have hardware, drive N virtual vehicles
+around Mexico City via our REST endpoints:
 
 ```bash
 # In one terminal, with a JWT for an Operator-or-better in tenant `default`:
@@ -78,8 +87,8 @@ Drop the same token into the browser via the JS console:
 localStorage.setItem('securetrax.token', '<JWT>'); location.reload();
 ```
 
-You should now see clustered cyan markers walking around the map, updated in
-real time over `/ws`.
+Either path: clustered cyan markers walk around the map, updated in real time
+over `/ws`.
 
 The web app boots into a full-screen MapLibre canvas. The top-left panel calls
 `GET /api/v1/capabilities` and lists enabled modules. With no license file the

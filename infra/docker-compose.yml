@@ -20,6 +20,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securetrax}
     volumes:
       - ./data/postgres:/home/postgres/pgdata/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -101,6 +102,25 @@ services:
     ports:
       - "8080:8080"
 
+  traccar:
+    <<: *restart
+    image: traccar/traccar:6-alpine
+    volumes:
+      - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      - ./data/traccar/logs:/opt/traccar/logs
+      - ./data/traccar/data:/opt/traccar/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+      # GPS device protocols (extend as needed). Common ones below:
+      - "5055:5055/tcp"   # OsmAnd / Traccar Client (HTTP)
+      - "5023:5023/tcp"   # Teltonika
+      - "5001:5001/tcp"   # GPS103
+      - "5013:5013/tcp"   # H02
+      # Add more device-protocol ports here as your fleet's hardware demands.
+
   api:
     <<: *restart
     build:
@@ -115,6 +135,10 @@ services:
       REDIS_URL: redis://redis:6379
       MQTT_URL: mqtt://mosquitto:1883
       KEYCLOAK_URL: http://keycloak:8080
+      TRACCAR_URL: ${TRACCAR_URL:-http://traccar:8082}
+      TRACCAR_USER: ${TRACCAR_USER:-admin}
+      TRACCAR_PASSWORD: ${TRACCAR_PASSWORD:-admin}
+      TRACCAR_TENANT_ID: ${TRACCAR_TENANT_ID:-default}
     volumes:
       - ../licenses:/app/licenses:ro
     depends_on:
@@ -123,6 +147,8 @@ services:
       redis:
         condition: service_started
       mosquitto:
+        condition: service_started
+      traccar:
         condition: service_started
     ports:
       - "3000:3000"
