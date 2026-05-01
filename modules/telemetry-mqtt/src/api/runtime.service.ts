@@ -5,12 +5,13 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
+  MQTT_CLIENT,
   SYSTEM_MQTT_ARCHIVER,
   SYSTEM_TRACKING_INGESTOR,
   type IMqttArchiver,
+  type IMqttClient,
   type ISystemTrackingIngestor,
 } from '@securetrax/core';
-import { MqttClientService } from './mqtt-client.service.js';
 import {
   MAPPINGS_REPOSITORY,
   type IMappingsRepository,
@@ -22,9 +23,9 @@ import type {
 } from './mapping.types.js';
 
 /**
- * Glues the live MQTT client to the archive + mapping engine + canonical
+ * Glues the shared MQTT client to the archive + mapping engine + canonical
  * pipeline. On every message:
- *   1. parse JSON when payloadKind allows; mirror raw + parsed into the
+ *   1. parse JSON when possible; mirror raw + parsed into the
  *      `mqtt_messages` hypertable (RLS-scoped per tenant).
  *   2. derive tenantId from the topic (`securetrax/<tenant>/...`).
  *   3. run the per-tenant mapping list (cached, refreshed every 30s).
@@ -38,9 +39,10 @@ export class TelemetryMqttRuntime implements OnModuleInit {
   private readonly log = new Logger(TelemetryMqttRuntime.name);
   private mappingsByTenant = new Map<string, TopicMapping[]>();
   private nextRefresh = 0;
+  private unsub?: () => void;
 
   constructor(
-    private readonly mqtt: MqttClientService,
+    @Inject(MQTT_CLIENT) private readonly mqtt: IMqttClient,
     @Inject(SYSTEM_MQTT_ARCHIVER) private readonly archiver: IMqttArchiver,
     @Inject(SYSTEM_TRACKING_INGESTOR)
     private readonly ingestor: ISystemTrackingIngestor,
@@ -48,13 +50,15 @@ export class TelemetryMqttRuntime implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
-    this.mqtt.on((topic, payloadRaw, qos, retained) => {
+    const root = process.env.MQTT_ROOT_SUBSCRIPTION ?? 'securetrax/#';
+    this.unsub = this.mqtt.subscribe(root, (topic, payloadRaw, qos, retained) => {
       this.handle(topic, payloadRaw, qos, retained).catch((e) =>
         this.log.error(
           `mqtt handle failed: ${e instanceof Error ? e.message : String(e)}`,
         ),
       );
     });
+    this.log.log(`telemetry-mqtt runtime subscribed to ${root}`);
   }
 
   private async handle(
@@ -73,7 +77,10 @@ export class TelemetryMqttRuntime implements OnModuleInit {
       tenantId,
       ts: Date.now(),
       topic,
-      payload: parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : { _raw: raw },
+      payload:
+        parsed && typeof parsed === 'object'
+          ? (parsed as Record<string, unknown>)
+          : { _raw: raw },
       payloadRaw: raw,
       qos,
       retained,
@@ -85,7 +92,10 @@ export class TelemetryMqttRuntime implements OnModuleInit {
       {
         tenantId,
         topic,
-        payload: typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined,
+        payload:
+          typeof parsed === 'object' && parsed !== null
+            ? (parsed as Record<string, unknown>)
+            : undefined,
         payloadRaw: raw,
         ts: Date.now(),
       },
@@ -109,7 +119,6 @@ export class TelemetryMqttRuntime implements OnModuleInit {
       });
       return;
     }
-    // telemetry/alert dispatchers come with their own ingest modules
     this.log.debug(
       `unhandled canonical event kind=${ev.kind} (handler not yet registered)`,
     );
@@ -136,9 +145,6 @@ export class TelemetryMqttRuntime implements OnModuleInit {
 }
 
 function tenantFromTopic(topic: string): string | undefined {
-  // Convention: securetrax/<tenant>/<asset>/<...>
-  // Anything outside that prefix is archived to the system tenant 'default'
-  // for now (the multi-tenant routing rule lives with section 9 of the plan).
   if (topic.startsWith('securetrax/')) {
     const parts = topic.split('/');
     return parts[1] || undefined;

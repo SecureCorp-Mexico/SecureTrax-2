@@ -121,6 +121,35 @@ services:
       - "5013:5013/tcp"   # H02
       # Add more device-protocol ports here as your fleet's hardware demands.
 
+  securevu:
+    # SecureVu = our Frigate fork. Pinned to upstream until the fork's first
+    # tagged release; the integration shape (MQTT topics, /api/<cam>/latest.jpg)
+    # is identical.
+    <<: *restart
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: "256mb"
+    privileged: true
+    environment:
+      FRIGATE_MQTT_HOST: mosquitto
+      FRIGATE_MQTT_PORT: "1883"
+    volumes:
+      - ./securevu/config.yml:/config/config.yml:ro
+      - ./data/securevu/storage:/media/frigate
+    depends_on:
+      mosquitto:
+        condition: service_started
+    ports:
+      - "5000:5000"
+
+  go2rtc:
+    <<: *restart
+    image: alexxit/go2rtc:latest
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    ports:
+      - "1984:1984"     # HTTP API + WebRTC + HLS
+      - "8554:8554"     # RTSP
+
   api:
     <<: *restart
     build:
@@ -139,6 +168,10 @@ services:
       TRACCAR_USER: ${TRACCAR_USER:-admin}
       TRACCAR_PASSWORD: ${TRACCAR_PASSWORD:-admin}
       TRACCAR_TENANT_ID: ${TRACCAR_TENANT_ID:-default}
+      FRIGATE_URL: ${FRIGATE_URL:-http://securevu:5000}
+      FRIGATE_TENANT_ID: ${FRIGATE_TENANT_ID:-default}
+      GO2RTC_URL: ${GO2RTC_URL:-http://localhost:1984}
+      GO2RTC_WS_URL: ${GO2RTC_WS_URL:-ws://localhost:1984}
     volumes:
       - ../licenses:/app/licenses:ro
     depends_on:

@@ -23,7 +23,6 @@
     "@securetrax/core": "workspace:*",
     "@securetrax/module-contracts": "workspace:*",
     "class-validator": "^0.14.1",
-    "mqtt": "^5.10.1",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

@@ -58,6 +58,12 @@ export const assets = pgTable(
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
     cameraBindings: jsonb('camera_bindings').$type<string[]>().notNull().default([]),
     attrs: jsonb('attrs').$type<Record<string, unknown>>().notNull().default({}),
+    /** Fixed-position devices store their location here; moving assets leave them null. */
+    lat: doublePrecision('lat'),
+    lon: doublePrecision('lon'),
+    /** online | offline | degraded | unknown — kept hot for marker styling. */
+    status: text('status').notNull().default('unknown'),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

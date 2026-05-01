@@ -1,0 +1,9 @@
+# go2rtc serves the WebRTC + HLS endpoints the popup video player consumes.
+# Sources are added at runtime by SecureVu (Frigate forwards each camera's
+# go2rtc-restream URL automatically when configured) or manually here.
+api:
+  listen: ":1984"
+rtsp:
+  listen: ":8554"
+
+streams: {}

@@ -25,6 +25,7 @@ import { StepUpGuard } from './auth/guards/step-up.guard.js';
 import { AuditModule } from './audit/audit.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { DbModule } from './db/db.module.js';
+import { MqttModule } from './mqtt/mqtt.module.js';
 import {
   manifest as trackingManifest,
   TrackingTraccarModule,
@@ -33,6 +34,10 @@ import {
   manifest as telemetryMqttManifest,
   TelemetryMqttModule,
 } from '@securetrax/module-telemetry-mqtt';
+import {
+  manifest as videoSecureVuManifest,
+  VideoSecureVuModule,
+} from '@securetrax/module-video-securevu';
 import type { ModuleManifest } from '@securetrax/module-contracts';
 
 interface RegisteredModule {
@@ -43,6 +48,7 @@ interface RegisteredModule {
 const ALL_MODULES: RegisteredModule[] = [
   { manifest: trackingManifest, nestModule: TrackingTraccarModule },
   { manifest: telemetryMqttManifest, nestModule: TelemetryMqttModule },
+  { manifest: videoSecureVuManifest, nestModule: VideoSecureVuModule },
 ];
 
 const license = loadLicenseSync();
@@ -63,6 +69,7 @@ const enabledModules = ALL_MODULES.filter((m) => {
     ConfigModule.forRoot({ isGlobal: true }),
     LicenseModule,
     DbModule,
+    MqttModule,
     IamModule,
     AuthModule,
     AuditModule,

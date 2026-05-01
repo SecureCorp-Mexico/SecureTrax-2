@@ -1,9 +1,10 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   BROADCASTER,
   type Asset,
   type AssetCategory,
+  type AssetStatus,
   type IBroadcaster,
   type Position,
 } from '@securetrax/core';
@@ -13,8 +14,9 @@ import { assets, positions } from './schema.js';
 /**
  * Background-context tracking ingestor. Same pipeline shape as
  * TrackingService (persist + broadcast) but takes tenantId explicitly so it
- * can be called from a long-running connection (e.g. the Traccar WS adapter)
- * that has no HTTP request to derive the principal from.
+ * can be called from a long-running connection (Traccar adapter, telemetry-
+ * mqtt runtime, video-securevu Frigate runtime) that has no HTTP request to
+ * derive the principal from.
  */
 @Injectable()
 export class SystemTrackingIngestor {
@@ -38,6 +40,9 @@ export class SystemTrackingIngestor {
         tags: input.tags,
         cameraBindings: input.cameraBindings,
         attrs: input.attrs,
+        lat: input.lat ?? null,
+        lon: input.lon ?? null,
+        status: (input.status ?? 'unknown') as AssetStatus,
       };
       await db
         .insert(assets)
@@ -52,13 +57,15 @@ export class SystemTrackingIngestor {
             tags: values.tags,
             cameraBindings: values.cameraBindings,
             attrs: values.attrs,
+            lat: values.lat,
+            lon: values.lon,
+            status: values.status,
             updatedAt: new Date(),
           },
         });
     });
   }
 
-  /** Look up asset id by an `attrs.<key>` jsonb match. */
   async findAssetByAttr(
     tenantId: string,
     key: string,
@@ -75,10 +82,7 @@ export class SystemTrackingIngestor {
     });
   }
 
-  async ingestPosition(
-    tenantId: string,
-    p: Position,
-  ): Promise<void> {
+  async ingestPosition(tenantId: string, p: Position): Promise<void> {
     await this.sys.withTenant(tenantId, async (db) => {
       await db
         .insert(positions)
@@ -99,5 +103,23 @@ export class SystemTrackingIngestor {
       ...p,
       tenantId,
     });
+  }
+
+  async setStatus(
+    tenantId: string,
+    assetId: string,
+    status: AssetStatus,
+    lastSeenMs?: number,
+  ): Promise<void> {
+    await this.sys.withTenant(tenantId, async (db) => {
+      const lastSeenAt = lastSeenMs ? new Date(lastSeenMs) : new Date();
+      await db
+        .update(assets)
+        .set({ status, lastSeenAt, updatedAt: new Date() })
+        .where(eq(assets.id, assetId));
+    });
+    const payload = { assetId, status, lastSeenAt: lastSeenMs ?? Date.now() };
+    this.broadcaster?.broadcast(`assets/${assetId}/status`, payload);
+    this.broadcaster?.broadcast(`cameras/${assetId}/status`, payload);
   }
 }

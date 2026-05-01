@@ -1,0 +1,14 @@
+# SecureVu (Frigate) base config. Add cameras under `cameras:` keyed by the
+# id you'll register via PUT /v1/video/cameras/<id> with attrs.frigateName
+# matching that key. The MQTT broker is the bundled Mosquitto; events flow
+# on `frigate/events`, availability on `frigate/<cam>/available`.
+mqtt:
+  host: mosquitto
+  port: 1883
+  topic_prefix: frigate
+
+detectors:
+  cpu:
+    type: cpu
+
+cameras: {}

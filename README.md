@@ -21,6 +21,7 @@ packages/core     Ed25519 license verifier, shared types, video stream-provider
 packages/module-contracts   zod schemas for manifests + license files
 modules/tracking-traccar    Traccar adapter + canonical position pipeline
 modules/telemetry-mqtt      MQTT archiver + per-tenant mapping engine
+modules/video-securevu      SecureVu/Frigate cameras + go2rtc WebRTC popup
 tools/license-cli           keygen / sign / verify CLI
 tools/sim-positions         synthetic GPS publisher for the demo
 infra             docker-compose, nginx, mosquitto, dockerfiles
@@ -39,7 +40,7 @@ pnpm --filter @securetrax/license-cli run keygen \
 # 3. Sign a license enabling the v1 modules
 pnpm --filter @securetrax/license-cli run sign \
   -- --kid st2-dev --tenant default \
-     --modules tracking-traccar,telemetry-mqtt --days 365
+     --modules tracking-traccar,telemetry-mqtt,video-securevu --days 365
 
 # 4. Bring up the base stack (Postgres+Timescale, Redis, Mosquitto, Keycloak,
 #    Vault, MinIO, TileServer GL, API, Web)
@@ -129,6 +130,36 @@ mosquitto_pub -h localhost -t 'securetrax/default/ROUTER-7/position' \
 curl -H "authorization: Bearer $TOKEN" \
   'http://localhost:3000/api/v1/telemetry/archive?topicLike=securetrax/%25&limit=20'
 ```
+
+### Demo: live camera markers + popup video
+
+With `video-securevu` licensed, the api subscribes to Frigate's MQTT
+publishings (`frigate/<cam>/available` for status, `frigate/events` for
+detections). Cameras are registered as fixed-position assets; the
+`FixedCamerasLayer` on the web side renders them as colored dots
+(green/yellow/red/grey for online/degraded/offline/unknown). Click a marker
+and the popup negotiates a WebRTC stream against go2rtc, falling back to HLS
+if WebRTC can't be set up.
+
+```bash
+# Register a fixed camera in Mexico City — frigateName must match a key under
+# `cameras:` in infra/securevu/config.yml.
+curl -X PUT http://localhost:3000/api/v1/video/cameras/CAM-1 \
+  -H "authorization: Bearer $TOKEN" -H "content-type: application/json" -d '{
+    "name": "Lobby cam",
+    "frigateName": "lobby",
+    "lat": 19.4326,
+    "lon": -99.1332
+  }'
+
+# Simulate Frigate publishing availability:
+mosquitto_pub -h localhost -t 'frigate/lobby/available' -m 'online' -r
+mosquitto_pub -h localhost -t 'frigate/lobby/available' -m 'offline' -r
+```
+
+The map's CAM-1 marker recolors live. Click it — the popup mounts a
+`<video>` against go2rtc (`ws://localhost:1984/api/ws?src=lobby`); if that
+fails it falls back to HLS at `/api/stream.m3u8?src=lobby`.
 
 The web app boots into a full-screen MapLibre canvas. The top-left panel calls
 `GET /api/v1/capabilities` and lists enabled modules.

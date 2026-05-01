@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { Asset, AssetCategory, IAssetsRepository } from '@securetrax/core';
+import type {
+  Asset,
+  AssetCategory,
+  AssetStatus,
+  IAssetsRepository,
+} from '@securetrax/core';
 import { TenantContextService } from './tenant-context.service.js';
 import { assets } from './schema.js';
 
 /**
- * Drizzle-backed implementation of `IAssetsRepository`. Uses the
- * request-scoped TenantContextService so every query runs under RLS — even if
- * a caller forgets to filter by tenant the policy will return zero rows.
+ * Drizzle-backed `IAssetsRepository`. Uses the request-scoped
+ * TenantContextService so every query runs under RLS — even if a caller
+ * forgets to filter by tenant the policy will return zero rows.
  */
 @Injectable()
 export class AssetsRepository implements IAssetsRepository {
@@ -41,6 +46,9 @@ export class AssetsRepository implements IAssetsRepository {
         tags: input.tags,
         cameraBindings: input.cameraBindings,
         attrs: input.attrs,
+        lat: input.lat ?? null,
+        lon: input.lon ?? null,
+        status: (input.status ?? 'unknown') as AssetStatus,
       };
       await db
         .insert(assets)
@@ -55,6 +63,9 @@ export class AssetsRepository implements IAssetsRepository {
             tags: values.tags,
             cameraBindings: values.cameraBindings,
             attrs: values.attrs,
+            lat: values.lat,
+            lon: values.lon,
+            status: values.status,
             updatedAt: new Date(),
           },
         });
@@ -65,7 +76,7 @@ export class AssetsRepository implements IAssetsRepository {
   }
 }
 
-function toAsset(r: typeof assets.$inferSelect): Asset {
+export function toAsset(r: typeof assets.$inferSelect): Asset {
   return {
     id: r.id,
     tenantId: r.tenantId,
@@ -76,5 +87,9 @@ function toAsset(r: typeof assets.$inferSelect): Asset {
     tags: r.tags,
     cameraBindings: r.cameraBindings,
     attrs: r.attrs,
+    lat: r.lat ?? null,
+    lon: r.lon ?? null,
+    status: (r.status as AssetStatus) ?? 'unknown',
+    lastSeenAt: r.lastSeenAt?.getTime() ?? null,
   };
 }

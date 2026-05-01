@@ -12,6 +12,9 @@ export const AssetCategory = z.enum([
 ]);
 export type AssetCategory = z.infer<typeof AssetCategory>;
 
+export const AssetStatus = z.enum(['online', 'degraded', 'offline', 'unknown']);
+export type AssetStatus = z.infer<typeof AssetStatus>;
+
 export const Asset = z.object({
   id: z.string(),
   tenantId: z.string(),
@@ -22,6 +25,11 @@ export const Asset = z.object({
   tags: z.array(z.string()).default([]),
   cameraBindings: z.array(z.string()).default([]),
   attrs: z.record(z.unknown()).default({}),
+  /** Fixed-position devices store coords here; moving assets leave them null. */
+  lat: z.number().nullable().optional(),
+  lon: z.number().nullable().optional(),
+  status: AssetStatus.default('unknown'),
+  lastSeenAt: z.number().nullable().optional(),
 });
 export type Asset = z.infer<typeof Asset>;
 
