@@ -27,6 +27,7 @@
     "@securetrax/core": "workspace:*",
     "@securetrax/module-contracts": "workspace:*",
     "@securetrax/module-ai-assistant": "workspace:*",
+    "@securetrax/module-aircraft-qgc": "workspace:*",
     "@securetrax/module-reports-fleet": "workspace:*",
     "@securetrax/module-telemetry-mqtt": "workspace:*",
     "@securetrax/module-tracking-traccar": "workspace:*",
