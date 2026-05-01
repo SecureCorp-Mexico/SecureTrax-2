@@ -22,6 +22,7 @@ packages/module-contracts   zod schemas for manifests + license files
 modules/tracking-traccar    Traccar adapter + canonical position pipeline
 modules/telemetry-mqtt      MQTT archiver + per-tenant mapping engine
 modules/video-securevu      SecureVu/Frigate cameras + go2rtc WebRTC popup
+modules/ai-assistant        Claude / Ollama assistant w/ tool-use over the data plane
 tools/license-cli           keygen / sign / verify CLI
 tools/sim-positions         synthetic GPS publisher for the demo
 infra             docker-compose, nginx, mosquitto, dockerfiles
@@ -40,7 +41,8 @@ pnpm --filter @securetrax/license-cli run keygen \
 # 3. Sign a license enabling the v1 modules
 pnpm --filter @securetrax/license-cli run sign \
   -- --kid st2-dev --tenant default \
-     --modules tracking-traccar,telemetry-mqtt,video-securevu --days 365
+     --modules tracking-traccar,telemetry-mqtt,video-securevu,ai-assistant \
+     --days 365
 
 # 4. Bring up the base stack (Postgres+Timescale, Redis, Mosquitto, Keycloak,
 #    Vault, MinIO, TileServer GL, API, Web)
@@ -160,6 +162,29 @@ mosquitto_pub -h localhost -t 'frigate/lobby/available' -m 'offline' -r
 The map's CAM-1 marker recolors live. Click it — the popup mounts a
 `<video>` against go2rtc (`ws://localhost:1984/api/ws?src=lobby`); if that
 fails it falls back to HLS at `/api/stream.m3u8?src=lobby`.
+
+### Demo: AI assistant over the data plane
+
+With `ai-assistant` licensed, an "Ask the assistant" button appears at the
+bottom-left of the map. The chat posts to `POST /api/v1/ai/chat`, which runs
+a tool-use loop against the data plane and streams the result back. Tools
+exposed to the LLM (each RBAC-gated):
+
+- `find_assets` — typed asset filter
+- `get_position_history` — GPS history per asset
+- `mqtt_search` — SQL `LIKE` over the rolling MQTT archive
+- `query_data` — generic structured search over assets / positions / mqtt
+
+Provider selection (set on the `api` service env):
+- `ANTHROPIC_API_KEY=sk-...` → Claude (`claude-opus-4-7`, adaptive thinking,
+  prompt caching on the system + tool-catalog prefix). Recommended.
+- Otherwise the assistant falls back to the bundled Ollama service.
+  Pull a model first: `docker compose exec ollama ollama pull qwen2.5:7b`.
+
+Try: *"Show me all online cameras at Site Sector-7"*, or
+*"Did `securetrax/+/router-+/lte_rsrp` ever drop below -110 today?"*. Every
+tool call is logged in the chat panel so operators see exactly which queries
+the assistant ran.
 
 The web app boots into a full-screen MapLibre canvas. The top-left panel calls
 `GET /api/v1/capabilities` and lists enabled modules.

@@ -26,6 +26,7 @@
     "@nestjs/platform-ws": "^10.4.4",
     "@securetrax/core": "workspace:*",
     "@securetrax/module-contracts": "workspace:*",
+    "@securetrax/module-ai-assistant": "workspace:*",
     "@securetrax/module-telemetry-mqtt": "workspace:*",
     "@securetrax/module-tracking-traccar": "workspace:*",
     "@securetrax/module-video-securevu": "workspace:*",

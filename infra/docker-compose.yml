@@ -150,6 +150,17 @@ services:
       - "1984:1984"     # HTTP API + WebRTC + HLS
       - "8554:8554"     # RTSP
 
+  ollama:
+    # Local LLM runtime for the AI assistant when ANTHROPIC_API_KEY is unset.
+    # Pull a model after first boot, e.g.:
+    #   docker compose exec ollama ollama pull qwen2.5:7b
+    <<: *restart
+    image: ollama/ollama:latest
+    volumes:
+      - ./data/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
   api:
     <<: *restart
     build:
@@ -172,6 +183,11 @@ services:
       FRIGATE_TENANT_ID: ${FRIGATE_TENANT_ID:-default}
       GO2RTC_URL: ${GO2RTC_URL:-http://localhost:1984}
       GO2RTC_WS_URL: ${GO2RTC_WS_URL:-ws://localhost:1984}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-7}
+      ANTHROPIC_EFFORT: ${ANTHROPIC_EFFORT:-high}
     volumes:
       - ../licenses:/app/licenses:ro
     depends_on:

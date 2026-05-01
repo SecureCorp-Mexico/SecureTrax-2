@@ -38,6 +38,10 @@ import {
   manifest as videoSecureVuManifest,
   VideoSecureVuModule,
 } from '@securetrax/module-video-securevu';
+import {
+  manifest as aiAssistantManifest,
+  AiAssistantModule,
+} from '@securetrax/module-ai-assistant';
 import type { ModuleManifest } from '@securetrax/module-contracts';
 
 interface RegisteredModule {
@@ -49,6 +53,7 @@ const ALL_MODULES: RegisteredModule[] = [
   { manifest: trackingManifest, nestModule: TrackingTraccarModule },
   { manifest: telemetryMqttManifest, nestModule: TelemetryMqttModule },
   { manifest: videoSecureVuManifest, nestModule: VideoSecureVuModule },
+  { manifest: aiAssistantManifest, nestModule: AiAssistantModule },
 ];
 
 const license = loadLicenseSync();
