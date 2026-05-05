@@ -1,0 +1,218 @@
+# SecureTrax-2 — base self-hosted on-prem stack.
+# Bring up with: docker compose -f infra/docker-compose.yml up -d
+#
+# Phase-0 services. Heavy add-ons (Traccar, SecureVu/Frigate, go2rtc,
+# Mosquitto archiver, LiveKit, OpenTelemetry, etc.) get added in their
+# own phase profiles so this file stays scannable.
+
+name: securetrax-2
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *restart
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_DB: securetrax
+      POSTGRES_USER: securetrax
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securetrax}
+    volumes:
+      - ./data/postgres:/home/postgres/pgdata/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securetrax -d securetrax"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+
+  mosquitto:
+    <<: *restart
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./data/mosquitto:/mosquitto/data
+      - ./data/mosquitto-log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+
+  minio:
+    <<: *restart
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-securetrax}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-securetrax-change-me}
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "9000:9000"
+      - "9011:9001"
+
+  vault:
+    <<: *restart
+    image: hashicorp/vault:1.17
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-securetrax-dev-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+
+  keycloak:
+    <<: *restart
+    image: quay.io/keycloak/keycloak:25.0
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-securetrax}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: securetrax
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-securetrax}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  tileserver:
+    <<: *restart
+    image: maptiler/tileserver-gl:latest
+    command: ["--public_url=http://localhost:8080/"]
+    volumes:
+      - ./tileserver:/data
+    ports:
+      - "8080:8080"
+
+  traccar:
+    <<: *restart
+    image: traccar/traccar:6-alpine
+    volumes:
+      - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      - ./data/traccar/logs:/opt/traccar/logs
+      - ./data/traccar/data:/opt/traccar/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+      # GPS device protocols (extend as needed). Common ones below:
+      - "5055:5055/tcp"   # OsmAnd / Traccar Client (HTTP)
+      - "5023:5023/tcp"   # Teltonika
+      - "5001:5001/tcp"   # GPS103
+      - "5013:5013/tcp"   # H02
+      # Add more device-protocol ports here as your fleet's hardware demands.
+
+  securevu:
+    # SecureVu = our Frigate fork. Pinned to upstream until the fork's first
+    # tagged release; the integration shape (MQTT topics, /api/<cam>/latest.jpg)
+    # is identical.
+    <<: *restart
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: "256mb"
+    privileged: true
+    environment:
+      FRIGATE_MQTT_HOST: mosquitto
+      FRIGATE_MQTT_PORT: "1883"
+    volumes:
+      - ./securevu/config.yml:/config/config.yml:ro
+      - ./data/securevu/storage:/media/frigate
+    depends_on:
+      mosquitto:
+        condition: service_started
+    ports:
+      - "5000:5000"
+
+  go2rtc:
+    <<: *restart
+    image: alexxit/go2rtc:latest
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    ports:
+      - "1984:1984"     # HTTP API + WebRTC + HLS
+      - "8554:8554"     # RTSP
+
+  ollama:
+    # Local LLM runtime for the AI assistant when ANTHROPIC_API_KEY is unset.
+    # Pull a model after first boot, e.g.:
+    #   docker compose exec ollama ollama pull qwen2.5:7b
+    <<: *restart
+    image: ollama/ollama:latest
+    volumes:
+      - ./data/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  api:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LICENSE_DIR: /app/licenses
+      LICENSE_KEYS_DIR: /app/licenses/keys
+      DATABASE_URL: postgres://securetrax:${POSTGRES_PASSWORD:-securetrax}@postgres:5432/securetrax
+      REDIS_URL: redis://redis:6379
+      MQTT_URL: mqtt://mosquitto:1883
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-securetrax-api}
+      KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-}
+      TRACCAR_URL: ${TRACCAR_URL:-http://traccar:8082}
+      TRACCAR_USER: ${TRACCAR_USER:-admin}
+      TRACCAR_PASSWORD: ${TRACCAR_PASSWORD:-admin}
+      TRACCAR_TENANT_ID: ${TRACCAR_TENANT_ID:-default}
+      FRIGATE_URL: ${FRIGATE_URL:-http://securevu:5000}
+      FRIGATE_TENANT_ID: ${FRIGATE_TENANT_ID:-default}
+      GO2RTC_URL: ${GO2RTC_URL:-http://localhost:1984}
+      GO2RTC_WS_URL: ${GO2RTC_WS_URL:-ws://localhost:1984}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-7}
+      ANTHROPIC_EFFORT: ${ANTHROPIC_EFFORT:-high}
+    volumes:
+      - ../licenses:/app/licenses:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+      traccar:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+  web:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    environment:
+      VITE_TILES_URL: http://localhost:8080/styles/basic-preview/style.json
+    depends_on:
+      - api
+    ports:
+      - "5173:80"

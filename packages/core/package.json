@@ -1,0 +1,35 @@
+{
+  "name": "@securetrax/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./license": "./src/license/index.ts",
+    "./video": "./src/video/index.ts",
+    "./types": "./src/types/index.ts",
+    "./repos": "./src/repos/index.ts",
+    "./realtime": "./src/realtime/index.ts",
+    "./mqtt": "./src/mqtt/index.ts",
+    "./express": "./src/express/index.ts",
+    "./iam-types": "./src/iam-types/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@securetrax/module-contracts": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.1.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

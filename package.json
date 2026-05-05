@@ -1,0 +1,28 @@
+{
+  "name": "securetrax-2",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SecureTrax-2 — Configurable Maps Hub",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "license:sign": "pnpm --filter @securetrax/license-cli run sign",
+    "license:verify": "pnpm --filter @securetrax/license-cli run verify",
+    "compose:up": "docker compose -f infra/docker-compose.yml up -d",
+    "compose:down": "docker compose -f infra/docker-compose.yml down",
+    "compose:logs": "docker compose -f infra/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.3",
+    "@types/node": "^20.16.10"
+  }
+}
