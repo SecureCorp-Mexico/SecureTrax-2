@@ -1,5 +1,13 @@
 import type { Asset, AssetStatus, Position } from '../types/index.js';
 
+/**
+ * Input shape for upserting an asset: tenant is implicit (call site supplies),
+ * status / lat / lon / lastSeenAt have repo-side defaults so they're optional
+ * to the caller.
+ */
+export type UpsertAssetInput = Omit<Asset, 'tenantId' | 'status' | 'lastSeenAt' | 'lat' | 'lon'> &
+  Partial<Pick<Asset, 'status' | 'lat' | 'lon' | 'lastSeenAt'>>;
+
 export interface IPositionsRepository {
   insert(p: Position & { tenantId: string }): Promise<void>;
   /** Latest position per asset (one row per asset). */
@@ -17,7 +25,7 @@ export const POSITIONS_REPOSITORY = Symbol.for('securetrax.positions-repository'
  * from req.principal. Callers pass tenantId explicitly; RLS still applies.
  */
 export interface ISystemTrackingIngestor {
-  upsertAsset(tenantId: string, input: Omit<Asset, 'tenantId'>): Promise<void>;
+  upsertAsset(tenantId: string, input: UpsertAssetInput): Promise<void>;
   ingestPosition(tenantId: string, p: Position): Promise<void>;
   findAssetByAttr(
     tenantId: string,

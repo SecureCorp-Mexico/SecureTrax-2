@@ -3,13 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { Reflector } from '@nestjs/core';
 import { PermissionGuard, RequirePermissions } from './permission.guard.js';
 import type { ExecutionContext } from '@nestjs/common';
-import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import type { Principal } from '../../iam/principal.js';
 import { tenantScope } from '../../iam/permissions.js';
 
-function ctx(req: Partial<Request>, handler: unknown, cls: unknown): ExecutionContext {
+function ctx(
+  req: { principal?: Principal },
+  handler: unknown,
+  cls: unknown,
+): ExecutionContext {
   return {
-    switchToHttp: () => ({ getRequest: () => req as Request, getResponse: () => ({}) }),
+    switchToHttp: () => ({
+      getRequest: () => req as unknown as AuthRequest,
+      getResponse: () => ({}),
+    }),
     getHandler: () => handler,
     getClass: () => cls,
   } as unknown as ExecutionContext;

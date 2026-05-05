@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import { PlansService } from './plans.service.js';
 import { DeployService } from './deploy.service.js';
 import {
@@ -58,14 +59,14 @@ export class AircraftController {
 
   @Get('plans')
   @RequirePermissions('aircraft.plans.read')
-  list(@Req() req: Request) {
+  list(@Req() req: AuthRequest) {
     if (!req.principal) throw new UnauthorizedException();
     return { items: this.plans.list(req.principal.tenantId) };
   }
 
   @Get('plans/:id')
   @RequirePermissions('aircraft.plans.read')
-  get(@Req() req: Request, @Param('id') id: string) {
+  get(@Req() req: AuthRequest, @Param('id') id: string) {
     if (!req.principal) throw new UnauthorizedException();
     const plan = this.plans.get(req.principal.tenantId, id);
     if (!plan) throw new NotFoundException();
@@ -78,7 +79,7 @@ export class AircraftController {
     summary:
       'Upsert a flight plan. Any change to the canonical body (waypoints, validity window, geofence, target aircraft) invalidates existing approvals.',
   })
-  upsert(@Req() req: Request, @Param('id') id: string, @Body() body: UpsertPlanDto) {
+  upsert(@Req() req: AuthRequest, @Param('id') id: string, @Body() body: UpsertPlanDto) {
     if (!req.principal) throw new UnauthorizedException();
     return this.plans.upsert({
       id,
@@ -99,7 +100,7 @@ export class AircraftController {
     summary:
       'Add an Ed25519 approval signature. Verifies the signature against the canonical plan body before storing. Authors cannot approve their own plans.',
   })
-  approve(@Req() req: Request, @Param('id') id: string, @Body() body: ApproveDto) {
+  approve(@Req() req: AuthRequest, @Param('id') id: string, @Body() body: ApproveDto) {
     if (!req.principal) throw new UnauthorizedException();
     return this.plans.addApproval(req.principal.tenantId, id, {
       approverId: body.approverId,
@@ -115,7 +116,7 @@ export class AircraftController {
       'Run the pre-flight gate and, if all checks pass, publish a signed RemoteMissionDeploy command on `securetrax/<tenant>/<aircraft>/cmd` for the onboard sidecar to execute.',
   })
   async deployPlan(
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Param('id') id: string,
     @Body() body: DeployDto,
   ) {
@@ -127,7 +128,7 @@ export class AircraftController {
   @RequirePermissions('aircraft.abort')
   @ApiOperation({ summary: 'Issue a signed RTL/LAND/BRAKE abort command.' })
   async abort(
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Param('id') aircraftId: string,
     @Body() body: AbortDto,
   ) {

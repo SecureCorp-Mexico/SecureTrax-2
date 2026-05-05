@@ -5,7 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import { scopeAllows } from '../../iam/scope.js';
 import type { ResourceRef } from '../../iam/scope.js';
 
@@ -19,7 +19,7 @@ import type { ResourceRef } from '../../iam/scope.js';
 export class ScopeGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<
-      Request & { scopeRef?: ResourceRef; scopeRefs?: ResourceRef[] }
+      AuthRequest & { scopeRef?: ResourceRef; scopeRefs?: ResourceRef[] }
     >();
     if (!req.principal) throw new UnauthorizedException('authentication required');
 

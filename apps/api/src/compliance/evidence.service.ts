@@ -7,7 +7,7 @@ import { LicenseService } from '../license/license.service.js';
 import { DbService } from '../db/db.service.js';
 import type { EvidenceTag } from './control-map.js';
 
-interface EvidenceValue {
+export interface EvidenceValue {
   tag: EvidenceTag;
   ts: number;
   ok: boolean;
@@ -189,14 +189,17 @@ export class EvidenceService {
 
       case 'license.head': {
         const lic = LicenseService.cached;
+        const claims = lic?.claims;
         return {
           tag,
           ts,
-          ok: !!lic,
-          detail: lic
-            ? `tenant=${lic.tenantId} modules=${[...lic.enabled].join(',')}  notAfter=${new Date(lic.notAfterMs).toISOString()}`
+          ok: !!claims,
+          detail: claims
+            ? `tenant=${claims.tenantId} modules=${[...(lic?.enabled ?? [])].join(',')} notAfter=${new Date(claims.notAfter * 1000).toISOString()}`
             : 'no license loaded',
-          data: lic ? { tenantId: lic.tenantId, modules: [...lic.enabled] } : undefined,
+          data: claims
+            ? { tenantId: claims.tenantId, modules: [...(lic?.enabled ?? [])] }
+            : undefined,
         };
       }
 

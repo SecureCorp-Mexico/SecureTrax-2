@@ -17,6 +17,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import { TrackingService } from './tracking.service.js';
 import { IngestPositionDto, UpsertAssetDto } from './dto.js';
 
@@ -43,7 +44,15 @@ export class TrackingController {
     return await this.tracking.upsertAsset({
       id,
       name: body.name,
-      category: body.category as never,
+      category: body.category as
+        | 'vehicle'
+        | 'aircraft'
+        | 'fixed-camera'
+        | 'router'
+        | 'intercom'
+        | 'access-control'
+        | 'sensor'
+        | 'other',
       siteId: body.siteId ?? null,
       groupId: body.groupId ?? null,
       tags: body.tags ?? [],
@@ -83,7 +92,7 @@ export class TrackingController {
       'Ingest a position for an asset. Traccar adapter, MQTT mapping engine, and the simulator all funnel through this same path.',
   })
   async ingest(
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Param('id') id: string,
     @Body() body: IngestPositionDto,
   ) {

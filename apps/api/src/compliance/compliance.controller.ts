@@ -79,8 +79,10 @@ export class ComplianceController {
         control: c.control,
         title: c.title,
         narrative: c.narrative,
-        evidence: c.evidence.map((tag) => evidence[tag]),
-        status: aggregateStatus(c.evidence.map((tag) => evidence[tag])),
+        evidence: c.evidence.map((tag) => evidence[tag]).filter((v): v is NonNullable<typeof v> => v !== undefined),
+        status: aggregateStatus(
+          c.evidence.map((tag) => evidence[tag]).filter((v): v is NonNullable<typeof v> => v !== undefined),
+        ),
       })),
     };
   }

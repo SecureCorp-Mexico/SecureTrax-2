@@ -1,9 +1,10 @@
 import type { Asset } from '../types/index.js';
+import type { UpsertAssetInput } from './positions.js';
 
 export interface IAssetsRepository {
   list(): Promise<Asset[]>;
   get(id: string): Promise<Asset | undefined>;
-  upsert(input: Omit<Asset, 'tenantId'>): Promise<Asset>;
+  upsert(input: UpsertAssetInput): Promise<Asset>;
 }
 
 /** DI token. Apps wire a concrete `IAssetsRepository`; modules consume it. */

@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import { LayoutsService } from './layouts.service.js';
 import { UpsertLayoutDto } from './dto.js';
 
@@ -30,14 +31,14 @@ export class VideowallController {
 
   @Get('layouts')
   @RequirePermissions('videowall.layouts.read')
-  list(@Req() req: Request) {
+  list(@Req() req: AuthRequest) {
     if (!req.principal) throw new UnauthorizedException();
     return { items: this.layouts.list(req.principal.tenantId) };
   }
 
   @Get('layouts/:id')
   @RequirePermissions('videowall.layouts.read')
-  get(@Req() req: Request, @Param('id') id: string) {
+  get(@Req() req: AuthRequest, @Param('id') id: string) {
     if (!req.principal) throw new UnauthorizedException();
     const l = this.layouts.get(req.principal.tenantId, id);
     if (!l) throw new NotFoundException();
@@ -50,7 +51,7 @@ export class VideowallController {
     summary:
       'Upsert a layout. Saving broadcasts videowall/<id>/sync so multi-monitor walls reflect the change in lockstep.',
   })
-  upsert(@Req() req: Request, @Param('id') id: string, @Body() body: UpsertLayoutDto) {
+  upsert(@Req() req: AuthRequest, @Param('id') id: string, @Body() body: UpsertLayoutDto) {
     if (!req.principal) throw new UnauthorizedException();
     return this.layouts.upsert({
       id,
@@ -66,7 +67,7 @@ export class VideowallController {
 
   @Delete('layouts/:id')
   @RequirePermissions('videowall.layouts.write')
-  remove(@Req() req: Request, @Param('id') id: string) {
+  remove(@Req() req: AuthRequest, @Param('id') id: string) {
     if (!req.principal) throw new UnauthorizedException();
     const ok = this.layouts.delete(req.principal.tenantId, id);
     if (!ok) throw new NotFoundException();

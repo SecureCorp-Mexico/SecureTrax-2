@@ -6,7 +6,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, WebSocket } from 'ws';
+import { WebSocket, type Server } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import { AuthService } from '../auth/auth.service.js';
 import { AuditService } from '../audit/audit.service.js';

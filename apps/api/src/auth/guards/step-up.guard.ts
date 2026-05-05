@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 
 const STEP_UP_KEY = 'securetrax:step-up';
 const DEFAULT_MAX_AGE_SECONDS = 5 * 60;
@@ -34,7 +34,7 @@ export class StepUpGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!opts) return true;
-    const req = context.switchToHttp().getRequest<Request>();
+    const req = context.switchToHttp().getRequest<AuthRequest>();
     if (!req.principal) throw new UnauthorizedException('authentication required');
     const max = opts.maxAgeSeconds ?? DEFAULT_MAX_AGE_SECONDS;
     const since = req.principal.mfaSince;

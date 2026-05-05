@@ -7,6 +7,7 @@ import {
   type AssetStatus,
   type IBroadcaster,
   type Position,
+  type UpsertAssetInput,
 } from '@securetrax/core';
 import { SystemContextService } from './system-context.service.js';
 import { assets, positions } from './schema.js';
@@ -27,7 +28,7 @@ export class SystemTrackingIngestor {
 
   async upsertAsset(
     tenantId: string,
-    input: Omit<Asset, 'tenantId'>,
+    input: UpsertAssetInput,
   ): Promise<void> {
     await this.sys.withTenant(tenantId, async (db) => {
       const values = {

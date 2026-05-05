@@ -50,7 +50,7 @@ interface ChatRequest {
   provider?: 'claude' | 'ollama';
 }
 
-interface ChatResponse {
+export interface ChatResponse {
   text: string;
   iterations: number;
   toolCalls: Array<{ name: string; input: unknown; ok: boolean }>;

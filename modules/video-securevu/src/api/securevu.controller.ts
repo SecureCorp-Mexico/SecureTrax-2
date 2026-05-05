@@ -15,10 +15,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import {
   ASSETS_REPOSITORY,
   type Asset,
+  type AuthRequest,
   type IAssetsRepository,
 } from '@securetrax/core';
 import { UpsertCameraDto } from './dto.js';
@@ -69,14 +70,14 @@ export class SecureVuController {
     summary: 'Register or update a fixed camera (location + Frigate binding).',
   })
   async upsert(
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Param('id') id: string,
     @Body() body: UpsertCameraDto,
   ) {
     const tenantId = req.principal?.tenantId;
     if (!tenantId) throw new UnauthorizedException();
     const streamId = body.streamId ?? body.frigateName;
-    const asset: Omit<Asset, 'tenantId'> = {
+    await this.assets.upsert({
       id,
       siteId: body.siteId ?? null,
       groupId: null,
@@ -88,8 +89,7 @@ export class SecureVuController {
       lat: body.lat,
       lon: body.lon,
       status: 'unknown',
-    };
-    await this.assets.upsert(asset);
+    });
     const stored = await this.assets.get(id);
     if (!stored) throw new Error('camera upsert returned no row');
     return toCameraView(stored);

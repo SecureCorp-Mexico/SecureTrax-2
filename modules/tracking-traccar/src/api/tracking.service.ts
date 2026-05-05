@@ -8,6 +8,7 @@ import {
   type IBroadcaster,
   type IPositionsRepository,
   type Position,
+  type UpsertAssetInput,
 } from '@securetrax/core';
 
 /**
@@ -31,7 +32,7 @@ export class TrackingService {
     return this.assets.list();
   }
 
-  async upsertAsset(input: Omit<Asset, 'tenantId'>): Promise<Asset> {
+  async upsertAsset(input: UpsertAssetInput): Promise<Asset> {
     return this.assets.upsert(input);
   }
 

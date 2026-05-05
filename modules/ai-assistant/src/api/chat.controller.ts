@@ -12,6 +12,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import { ChatRuntime } from './chat.runtime.js';
 import { ChatRequestDto } from './dto.js';
 
@@ -30,7 +31,7 @@ export class ChatController {
     summary:
       'Run one assistant turn end-to-end (LLM round-trip + tool-use loop). Returns the final assistant text plus a transparent log of every tool call made.',
   })
-  async chat(@Req() req: Request, @Body() body: ChatRequestDto) {
+  async chat(@Req() req: AuthRequest, @Body() body: ChatRequestDto) {
     if (!req.principal) throw new UnauthorizedException();
     const viewport = body.viewport
       ? {

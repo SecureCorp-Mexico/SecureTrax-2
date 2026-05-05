@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import type { Permission } from '../../iam/permissions.js';
 
 const PERMISSION_KEY = 'securetrax:permissions';
@@ -29,7 +29,7 @@ export class PermissionGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!required || required.length === 0) return true;
-    const req = context.switchToHttp().getRequest<Request>();
+    const req = context.switchToHttp().getRequest<AuthRequest>();
     if (!req.principal) throw new UnauthorizedException('authentication required');
     for (const perm of required) {
       if (!req.principal.permissions.has(perm)) {

@@ -5,6 +5,7 @@ import type {
   AssetCategory,
   AssetStatus,
   IAssetsRepository,
+  UpsertAssetInput,
 } from '@securetrax/core';
 import { TenantContextService } from './tenant-context.service.js';
 import { assets } from './schema.js';
@@ -33,7 +34,7 @@ export class AssetsRepository implements IAssetsRepository {
     });
   }
 
-  async upsert(input: Omit<Asset, 'tenantId'>): Promise<Asset> {
+  async upsert(input: UpsertAssetInput): Promise<Asset> {
     const tenantId = this.ctx.tenantId();
     return this.ctx.withDb(async (db) => {
       const values = {

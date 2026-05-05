@@ -1,6 +1,6 @@
 import { Inject, Injectable, Scope } from '@nestjs/common';
+import type { AuthRequest } from '@securetrax/core';
 import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
 import { DbService, type Db } from './db.service.js';
 
 /**
@@ -12,7 +12,7 @@ import { DbService, type Db } from './db.service.js';
 @Injectable({ scope: Scope.REQUEST })
 export class TenantContextService {
   constructor(
-    @Inject(REQUEST) private readonly req: Request,
+    @Inject(REQUEST) private readonly req: AuthRequest,
     private readonly db: DbService,
   ) {}
 

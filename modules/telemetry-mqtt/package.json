@@ -22,10 +22,13 @@
     "@nestjs/swagger": "^7.4.2",
     "@securetrax/core": "workspace:*",
     "@securetrax/module-contracts": "workspace:*",
+    "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.1.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.2"
   }

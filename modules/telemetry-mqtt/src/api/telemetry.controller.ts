@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { AuthRequest } from '@securetrax/core';
 import {
   SYSTEM_MQTT_ARCHIVER,
   type IMqttArchiver,
@@ -44,7 +45,7 @@ export class TelemetryController {
   @Get('mappings')
   @RequirePermissions('telemetry.mappings.read')
   @ApiOperation({ summary: 'List MQTT topic→canonical mappings.' })
-  async list(@Req() req: Request) {
+  async list(@Req() req: AuthRequest) {
     const tenantId = req.principal?.tenantId;
     if (!tenantId) throw new UnauthorizedException();
     return { items: await this.mappings.list(tenantId) };
@@ -54,7 +55,7 @@ export class TelemetryController {
   @RequirePermissions('telemetry.mappings.write')
   @ApiOperation({ summary: 'Create or update an MQTT mapping.' })
   async upsert(
-    @Req() req: Request,
+    @Req() req: AuthRequest,
     @Param('id') id: string,
     @Body() body: UpsertMappingDto,
   ) {
@@ -76,7 +77,7 @@ export class TelemetryController {
   @Delete('mappings/:id')
   @RequirePermissions('telemetry.mappings.write')
   @ApiOperation({ summary: 'Delete a mapping.' })
-  async remove(@Req() req: Request, @Param('id') id: string) {
+  async remove(@Req() req: AuthRequest, @Param('id') id: string) {
     const tenantId = req.principal?.tenantId;
     if (!tenantId) throw new UnauthorizedException();
     await this.mappings.delete(tenantId, id);
@@ -93,7 +94,7 @@ export class TelemetryController {
     summary:
       'Search the rolling MQTT archive (powers the AI assistant\'s mqtt_search later).',
   })
-  async search(@Req() req: Request, @Query() q: ArchiveSearchDto) {
+  async search(@Req() req: AuthRequest, @Query() q: ArchiveSearchDto) {
     const tenantId = req.principal?.tenantId;
     if (!tenantId) throw new UnauthorizedException();
     return {
